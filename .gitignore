@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Local / private overrides (optional)
+.env
+.env.local
+*.local
+.history
