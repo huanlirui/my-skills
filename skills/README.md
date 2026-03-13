@@ -8,10 +8,12 @@
 skills/
 ├── my-skill-a/
 │   └── SKILL.md
-└── my-skill-b/
-    ├── SKILL.md
-    ├── reference.md    # 可选
-    └── scripts/        # 可选
+├── my-skill-b/
+│   ├── SKILL.md
+│   ├── reference.md    # 可选
+│   └── scripts/        # 可选
+└── weekly-report/
+    └── SKILL.md
 ```
 
 安装时把对应 skill 目录复制或软链到目标工具的 skills 路径即可（如 Cursor: `~/.cursor/skills/`，Codex: `$CODEX_HOME/skills/`）。

@@ -1,3 +1,8 @@
+---
+name: daily-report
+description: 根据指定日期读取当前 git 用户提交，生成中文 Git 提交日报（提交明细与当日总结）。
+---
+
 # daily-report
 
 根据指定日期生成 Git 提交日报。
