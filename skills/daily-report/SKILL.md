@@ -1,15 +1,19 @@
 ---
 name: daily-report
-description: 根据指定日期读取当前 git 用户提交，生成中文 Git 提交日报（提交明细与当日总结）。
+description: 根据指定日期读取当前 git 用户提交，输出中文 Git 日报（模块、改动与完成事项）。
 ---
 
 # daily-report
 
-根据指定日期生成 Git 提交日报。
+根据指定日期生成 Git 提交日报，并用中文说明：
+
+- 在什么模块改动
+- 修改了什么
+- 做了什么
 
 ## 使用方法
 
-```
+```bash
 /daily-report [日期]
 ```
 
@@ -17,128 +21,115 @@ description: 根据指定日期读取当前 git 用户提交，生成中文 Git 
 
 日期格式示例：
 
-- `2026-01-29`
-- `today` (今天)
-- `yesterday` (昨天)
+- `today`：今天
+- `yesterday`：昨天
+- `2026-03-13`：指定日期
 
 ## 技能描述
 
-当用户调用此技能时，按照以下步骤生成日报：
+当用户调用此技能时，按以下步骤执行：
 
 1. **解析日期参数**
 
-   - 如果用户提供了日期参数（如 `2026-01-29`），使用该日期
-   - 如果参数为 `today`，使用今天的日期
-   - 如果参数为 `yesterday`，使用昨天的日期
-   - 如果没有提供参数，默认使用今天的日期
-   - 将日期转换为 Git 所需的格式：`YYYY-MM-DD`
+   - 若参数为 `today` 或缺省：使用今天的日期
+   - 若参数为 `yesterday`：使用昨天日期
+   - 若参数为 `YYYY-MM-DD`：直接使用该日期
+   - 生成查询窗口：`YYYY-MM-DD 00:00:00` 到 `YYYY-MM-DD 23:59:59`
 
 2. **获取 Git 用户信息**
 
-   - 首先使用 `git config user.name` 获取当前用户名
-   - 使用 `git config user.email` 获取当前用户邮箱
-   - 如果获取失败，提示用户配置 git 用户信息：
+   - 使用 `git config user.name` 与 `git config user.email`
+   - 若未配置，提示用户先执行：
 
      ```bash
      git config user.name "Your Name"
      git config user.email "your.email@example.com"
      ```
 
-3. **获取 Git 提交记录**
+3. **读取当日提交日志（仅当前用户，排除 merge）**
 
-   - 使用 `git log` 命令查询指定日期的提交记录
-   - 使用从 git config 获取的用户名作为作者过滤条件
-   - 命令格式：
+   - 执行查询：
 
      ```bash
-     git log --author="$(git config user.name)" --since="YYYY-MM-DD 00:00:00" --until="YYYY-MM-DD 23:59:59" --pretty=format:"%h - %s (%ci)" --no-merges
+     git log \
+       --author="$(git config user.name)" \
+       --since="YYYY-MM-DD 00:00:00" \
+       --until="YYYY-MM-DD 23:59:59" \
+       --no-merges \
+       --pretty=format:"__COMMIT__%n%H%n%h%n%an%n%ae%n%ad%n%s%n%b" \
+       --date=iso \
+       --numstat
      ```
 
-   - 如果需要查看详细变更，可以使用：
+   - 从日志提取：
+     - 提交基本信息：hash、时间、标题、正文
+     - 文件级改动：新增/删除行数、文件路径
 
-     ```bash
-     git log --author="$(git config user.name)" --since="YYYY-MM-DD 00:00:00" --until="YYYY-MM-DD 23:59:59" --pretty=format:"%h - %s%n%b" --stat --no-merges
-     ```
+4. **识别“模块-改动-工作内容”**
 
-4. **格式化日报内容**
-   生成以下格式的日报：
+   - 模块识别规则（按顺序）：
+     - 优先使用提交标题范围标识，如 `feat(auth): ...` 的 `auth`
+     - 否则使用文件路径首段或业务目录，如 `src/auth/*` -> `auth`，`packages/ui/*` -> `ui`
+     - 若无法识别，归类为 `misc`
+   - “修改了什么”：
+     - 基于 `--numstat` 与文件路径，概括文件层面的变更（新增功能、修复、重构、测试、文档、配置）
+   - “做了什么”：
+     - 综合提交标题/正文与文件改动，提炼成人可读工作项（中文短句）
+
+5. **生成“日报主体”**
+
+   - 无提交时：输出 `当天无提交记录`
+   - 有提交时至少输出：
+     - 当日提交数
+     - 当日涉及模块（去重）
+     - 当日主要工作（3-6 条）
+     - 关键提交明细（可精简）
+     - 修改了什么（按文件或目录归纳）
+
+6. **输出格式（中文 Markdown）**
+
+   输出格式如下：
 
    ```markdown
    # Git 提交日报 - YYYY-MM-DD
 
-   **提交者**: [从 git config 获取的用户名] <[从 git config 获取的邮箱]>
+   **提交者**: 用户名 <邮箱>
    **统计**: X 个提交
+   **涉及模块**: auth, ui, misc
 
-   ## 提交记录
+   ## 今日进展
 
-   ### [commit-hash] 提交标题
+   ### 做了什么
+   - ...
+   - ...
 
-   **时间**: HH:MM:SS
-   **变更文件**: X files changed, Y insertions(+), Z deletions(-)
+   ### 修改了什么
+   - src/auth/login.ts: 修复登录状态校验并补充异常处理
+   - packages/ui/Button.vue: 重构按钮样式变量并统一尺寸行为
 
-   提交详细说明（如果有）
+   ### 关键提交
+   - `a1b2c3d` feat(auth): 支持短信验证码登录
+   - `e4f5g6h` refactor(ui): 提取按钮公共样式逻辑
 
-   主要变更的文件：
-
-   - 文件路径 1
-   - 文件路径 2
-
-   ---
-
-   ### [commit-hash] 提交标题
-
-   ...
-
-   ## 总结
-
-   今日共完成 X 个提交，主要工作内容包括：
-
-   - 根据提交信息总结的工作内容
+   ## 今日总结
+   - 完成 ...（1-3 条）
+   - 风险/阻塞 ...（若可识别）
+   - 明日建议跟进 ...（1-2 条）
    ```
 
-5. **处理特殊情况**
+7. **异常处理**
 
-   - 如果 git config 中没有配置用户信息，提示用户先配置
-   - 如果指定日期没有提交记录，输出：`该日期 (YYYY-MM-DD) 没有找到提交记录。`
-   - 如果 git 命令执行失败，提示用户检查是否在 git 仓库目录下
+   - 不在 Git 仓库：提示切换到仓库目录
+   - 指定日期无提交：输出完整日报骨架，并标记 `当天无提交记录`
+   - git 命令失败：提示用户检查仓库状态和权限
 
-6. **输出日报**
-   - 直接在终端输出格式化后的日报内容
-   - 询问用户是否需要将日报保存为文件（如 `daily-report-YYYY-MM-DD.md`）
+8. **输出要求**
 
-## 示例
-
-用户输入：`/daily-report 2026-01-29`
-
-输出：
-
-```markdown
-# Git 提交日报 - 2026-01-29
-
-**提交者**: John Doe <john@example.com>
-**统计**: 3 个提交
-
-## 提交记录
-
-### [dfb65f1c] refactor: 优化 saveChangeResource 方法，简化参数构建逻辑并增强代码可读性；更新 MetaTableMgV2 组件以支持更多发布状态
-
-**时间**: 14:30:25
-**变更文件**: 2 files changed, 45 insertions(+), 30 deletions(-)
-
-主要变更的文件：
-
-- src/api/resource.ts
-- src/components/MetaTableMgV2.vue
-
----
-
-...
-```
+   - 直接输出中文 Markdown 日报内容
+   - 必须基于真实 git 提交，不得凭空编造
 
 ## 注意事项
 
-- 确保在 git 仓库目录下执行
-- 确保 git config 已配置用户信息（user.name 和 user.email）
-- 日期格式必须正确（YYYY-MM-DD）
-- 只统计当前 git 用户的提交
-- 不包含 merge commits
+- 输出必须是中文
+- 仅统计当前 git 用户提交，排除 merge commits
+- 优先体现“模块、改动、完成事项”，避免仅罗列 commit 标题
