@@ -36,7 +36,7 @@ description: 根据指定日期读取当前 git 用户提交，输出中文 Git 
    - 若参数为 `YYYY-MM-DD`：直接使用该日期
    - 生成查询窗口：`YYYY-MM-DD 00:00:00` 到 `YYYY-MM-DD 23:59:59`
 
-2. **获取 Git 用户信息**
+2. **获取 Git 用户信息与系统时区**
 
    - 使用 `git config user.name` 与 `git config user.email`
    - 若未配置，提示用户先执行：
@@ -46,15 +46,23 @@ description: 根据指定日期读取当前 git 用户提交，输出中文 Git 
      git config user.email "your.email@example.com"
      ```
 
+   - 获取系统时区偏移量：
+
+     ```bash
+     TZ_OFFSET=$(date +%:z)
+     ```
+
+     例如输出 `+08:00`，后续日期参数需附加该偏移量
+
 3. **读取当日提交日志（仅当前用户，排除 merge）**
 
-   - 执行查询：
+   - 执行查询（**注意：`--since` 和 `--until` 必须带时区偏移量**）：
 
      ```bash
      git log \
        --author="$(git config user.name)" \
-       --since="YYYY-MM-DD 00:00:00" \
-       --until="YYYY-MM-DD 23:59:59" \
+       --since="YYYY-MM-DD 00:00:00${TZ_OFFSET}" \
+       --until="YYYY-MM-DD 23:59:59${TZ_OFFSET}" \
        --no-merges \
        --pretty=format:"__COMMIT__%n%H%n%h%n%an%n%ae%n%ad%n%s%n%b" \
        --date=iso \

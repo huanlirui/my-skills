@@ -39,7 +39,7 @@ description: 根据指定周读取当前 git 用户提交，按天输出中文�
    - 若参数为 `YYYY-Www`：解析为该 ISO 周的周一到周日
    - 若参数为 `YYYY-MM-DD..YYYY-MM-DD`：直接使用给定范围
 
-2. **获取 Git 用户信息**
+2. **获取 Git 用户信息与系统时区**
 
    - 使用 `git config user.name` 与 `git config user.email`
    - 若未配置，提示用户先执行：
@@ -49,16 +49,24 @@ description: 根据指定周读取当前 git 用户提交，按天输出中文�
      git config user.email "your.email@example.com"
      ```
 
+   - 获取系统时区偏移量：
+
+     ```bash
+     TZ_OFFSET=$(date +%:z)
+     ```
+
+     例如输出 `+08:00`，后续日期参数需附加该偏移量
+
 3. **按天读取提交日志（仅当前用户，排除 merge）**
 
-   对周内每一天执行查询（**必须搜索所有分支**，不限于当前分支）：
+   对周内每一天执行查询（**必须搜索所有分支**，不限于当前分支，**注意：`--since` 和 `--until` 必须带时区偏移量**）：
 
    ```bash
    git log \
      --all \
      --author="$(git config user.name)" \
-     --since="YYYY-MM-DD 00:00:00" \
-     --until="YYYY-MM-DD 23:59:59" \
+     --since="YYYY-MM-DD 00:00:00${TZ_OFFSET}" \
+     --until="YYYY-MM-DD 23:59:59${TZ_OFFSET}" \
      --no-merges \
      --pretty=format:"__COMMIT__%n%s%n%b" \
      --numstat
