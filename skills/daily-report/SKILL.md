@@ -46,28 +46,30 @@ description: 根据指定日期读取当前 git 用户提交，输出中文 Git 
      git config user.email "your.email@example.com"
      ```
 
-   - 获取系统时区偏移量：
+   - 获取系统时区偏移量（**注意：必须用 `%z` 而非 `%:z`，git 要求无冒号格式如 `+0800`**）：
 
      ```bash
-     TZ_OFFSET=$(date +%:z)
+     TZ_OFFSET=$(date +%z)
      ```
 
-     例如输出 `+08:00`，后续日期参数需附加该偏移量
+     例如输出 `+0800`，后续日期参数需附加该偏移量
 
 3. **读取当日提交日志（仅当前用户，排除 merge）**
 
-   - 执行查询（**注意：`--since` 和 `--until` 必须带时区偏移量**）：
+   - 执行查询（**日期格式必须严格遵守，空格分隔，时区无冒号**）：
 
      ```bash
      git log \
        --author="$(git config user.name)" \
-       --since="YYYY-MM-DD 00:00:00${TZ_OFFSET}" \
-       --until="YYYY-MM-DD 23:59:59${TZ_OFFSET}" \
+       --since="YYYY-MM-DD 00:00:00 ${TZ_OFFSET}" \
+       --until="YYYY-MM-DD 23:59:59 ${TZ_OFFSET}" \
        --no-merges \
        --pretty=format:"__COMMIT__%n%H%n%h%n%an%n%ae%n%ad%n%s%n%b" \
        --date=iso \
        --numstat
      ```
+
+     实际效果示例：`--since="2026-06-25 00:00:00 +0800" --until="2026-06-25 23:59:59 +0800"`
 
    - 从日志提取：
      - 提交基本信息：hash、时间、标题、正文
